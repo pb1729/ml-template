@@ -18,7 +18,15 @@ class Test(nn.Module):
 # It's very important to wrap all of our training code in a module name check like this.
 # Otherwise it will be re-executed when we reload the run, just like our definitions.
 if __name__ == "__main__":
+  import argparse
+  
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--count")
+  parser.add_argument("--verbose", action="store_true")
+  args = parser.parse_args()
+  
   run = Run()
+  run.register_args(args)
   run.register_module_class(Test)
 
   model = run.make_module("model", "Test", 16)

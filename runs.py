@@ -2,7 +2,7 @@ import sys
 import inspect
 import re
 import importlib
-from dataclasses import dataclass
+from argparse import Namespace
 
 import torch
 
@@ -58,6 +58,7 @@ class Run:
     self.modules = {} # mapping from module name to module
     self.history = []
     self.current_datapoints = None
+    self.args = None # object where we save any CLI args
     if empty:
       self.sources = None
     else:
@@ -69,6 +70,9 @@ class Run:
         "Dis-allowed operation called while executing sources during re-loading.\n"
         "Reminder: Everything in your scripts will be re-executed, "
         "unless it's wrapped in if __name__ == \"__main__\".")
+  def register_args(self, args:Namespace):
+    assert self.args is None, "args already registered"
+    self.args = args
   def register_module_class(self, cls):
     """ Warning: You *must* keep the class name consistent across files here. """
     self.module_classes[cls.__name__] = cls
@@ -97,11 +101,12 @@ class Run:
       module.load_state_dict(data["modules"][name]) # we have to load the saved state too
       ans.modules[name] = module
     ans.history = data["history"]
+    if "args" in data: ans.args = Namespace(**data["args"])
     return ans
   def to_dict(self) -> dict:
     self._check_not_executing_sources()
-    assert self.current_datapoints is None, "must complete the step before exporting to dict"
-    return {
+    assert self.current_datapoints is None, "must complete the current step before exporting"
+    ans = {
       "sources": self.sources,
       "module_classes": {
         class_name: None
@@ -114,6 +119,9 @@ class Run:
       },
       "history": self.history,
     }
+    if self.args is not None:
+      ans["args"] = vars(self.args)
+    return ans
   def save(self, path):
     return torch.save(self.to_dict(), path)
   @staticmethod
